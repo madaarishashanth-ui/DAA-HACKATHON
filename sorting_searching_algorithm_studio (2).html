@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AlgoStudio - Sorting & Searching Visualizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['Fira Code', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              500: '#0284c7',
+              600: '#0369a1',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Visualizer Bar States */
+    .bar-default {
+      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+    }
+    .bar-comparing {
+      background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%) !important;
+      box-shadow: 0 0 16px rgba(251, 191, 36, 0.7) !important;
+      transform: scaleY(1.03);
+    }
+    .bar-swapping {
+      background: linear-gradient(180deg, #f43f5e 0%, #be123c 100%) !important;
+      box-shadow: 0 0 18px rgba(244, 63, 94, 0.8) !important;
+      transform: scaleY(1.05);
+    }
+    .bar-pivot {
+      background: linear-gradient(180deg, #c084fc 0%, #7e22ce 100%) !important;
+      box-shadow: 0 0 18px rgba(192, 132, 252, 0.8) !important;
+    }
+    .bar-sorted {
+      background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
+      box-shadow: 0 0 12px rgba(52, 211, 153, 0.5) !important;
+    }
+    .bar-found {
+      background: linear-gradient(180deg, #fbbf24 0%, #10b981 100%) !important;
+      box-shadow: 0 0 25px rgba(251, 191, 36, 0.9) !important;
+      animation: pulse-glow 1s infinite alternate;
+    }
+    .bar-discarded {
+      background: #334155 !important;
+      opacity: 0.28 !important;
+      filter: grayscale(80%);
+    }
+    .bar-active-range {
+      border: 1.5px solid #38bdf8;
+    }
+
+    @keyframes pulse-glow {
+      0% { filter: brightness(1); transform: scaleY(1); }
+      100% { filter: brightness(1.25); transform: scaleY(1.06); }
+    }
+
+    /* Code Highlight Line */
+    .code-line.active {
+      background-color: rgba(56, 189, 248, 0.2);
+      border-left: 3px solid #38bdf8;
+      color: #f8fafc;
+      font-weight: 600;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col selection:bg-sky-500 selection:text-white">
+  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50 px-4 py-3 sm:px-6">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/25 ring-1 ring-white/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            AlgoStudio <span class="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30">DAA Core</span>
+          </h1>
+          <p class="text-xs text-slate-400 font-medium">Interactive Visualizer for Sorting & Searching Algorithms</p>
+        </div>
+      </div>
+
+      <!-- Mode Selector Tabs -->
+      <nav class="flex items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700/60" aria-label="Mode Tabs">
+        <button id="mode-single-sort" onclick="setMode('single-sort')" class="mode-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-sky-600 text-white shadow">
+          Single Sort
+        </button>
+        <button id="mode-dual-sort" onclick="setMode('dual-sort')" class="mode-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-300 hover:text-white">
+          Side-by-Side Sort
+        </button>
+        <button id="mode-search" onclick="setMode('search')" class="mode-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-300 hover:text-white">
+          Searching Mode
+        </button>
+      </nav>
+
+      <!-- Audio & Quick Help Toggle -->
+      <div class="flex items-center gap-2">
+        <button id="sound-btn" onclick="toggleAudio()" title="Toggle Sound Feedback" class="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700 transition">
+          <svg id="sound-icon-on" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+          </svg>
+          <svg id="sound-icon-off" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 14l4-4m0 4l-4-4" />
+          </svg>
+        </button>
+        <button onclick="toggleModal('info-modal')" class="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700 transition" title="Algorithm Details & Guide">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-6">
+    
+    <!-- Controls Toolbar Panel -->
+    <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur-sm">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
+        
+        <!-- Algorithm Dropdown (Context Sensitive) -->
+        <div class="flex flex-col gap-1.5" id="algo-selection-box">
+          <label id="algo-label" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Algorithm</label>
+          <div class="relative">
+            <select id="algo-select" onchange="onAlgoChange()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium cursor-pointer transition">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Array Preset Generator -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Input Preset</label>
+          <div class="grid grid-cols-4 gap-1">
+            <button onclick="generateData('random')" class="px-2 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg transition font-medium text-center">Random</button>
+            <button onclick="generateData('nearly-sorted')" class="px-2 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg transition font-medium text-center">Nearly</button>
+            <button onclick="generateData('reversed')" class="px-2 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg transition font-medium text-center">Reverse</button>
+            <button onclick="generateData('few-unique')" class="px-2 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg transition font-medium text-center">Duplicates</button>
+          </div>
+        </div>
+
+        <!-- Size & Speed Sliders -->
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-400 font-semibold uppercase tracking-wider">Array Size: <span id="size-val" class="text-sky-400 font-mono font-bold">25</span></span>
+            <span class="text-slate-400 font-semibold uppercase tracking-wider">Speed: <span id="speed-val" class="text-sky-400 font-mono font-bold">1x</span></span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <input type="range" id="size-slider" min="6" max="50" value="25" oninput="onSizeSliderChange(this.value)" class="w-full accent-sky-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg appearance-none" />
+            <input type="range" id="speed-slider" min="1" max="100" value="45" oninput="onSpeedSliderChange(this.value)" class="w-full accent-sky-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg appearance-none" />
+          </div>
+        </div>
+
+        <!-- Primary Execution Controls -->
+        <div class="flex items-center gap-2 pt-1 md:pt-4">
+          <button id="step-back-btn" onclick="stepBackward()" title="Step Backward" class="flex-1 py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-200 transition flex items-center justify-center font-medium disabled:opacity-30 disabled:cursor-not-allowed">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" /></svg>
+          </button>
+          <button id="play-btn" onclick="togglePlay()" class="flex-2 w-full py-2.5 px-4 bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-lg shadow-sky-600/30 font-semibold text-sm transition flex items-center justify-center gap-2">
+            <svg id="play-icon" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
+            <span id="play-text">Start</span>
+          </button>
+          <button id="step-fwd-btn" onclick="stepForward()" title="Step Forward" class="flex-1 py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-200 transition flex items-center justify-center font-medium disabled:opacity-30 disabled:cursor-not-allowed">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" /></svg>
+          </button>
+          <button id="reset-btn" onclick="resetCurrentRun()" title="Reset to initial state" class="py-2.5 px-3 bg-slate-800 hover:bg-rose-900/50 hover:border-rose-700/60 border border-slate-700 rounded-xl text-slate-200 transition flex items-center justify-center font-medium">
+            <svg class="w-4 h-4 text-slate-300 hover:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="search-controls-bar" class="hidden mt-4 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="text-xs font-semibold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            Target Value:
+          </span>
+          <div class="flex items-center gap-2">
+            <input type="number" id="search-target-input" class="w-24 bg-slate-800 border border-slate-700 focus:border-amber-400 rounded-lg px-2.5 py-1 text-sm font-mono text-white text-center" value="42" />
+            <button onclick="setRandomSearchTarget()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-slate-300 font-medium">Pick Random Existing</button>
+            <button onclick="setNotFoundSearchTarget()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-slate-300 font-medium">Pick Non-Existing</button>
+          </div>
+        </div>
+        <div class="text-xs text-slate-400 font-mono">
+          Array auto-sorted for Binary Search requirement
+        </div>
+      </div>
+
+      <!-- Custom Array Input Drawer -->
+      <div class="mt-3 flex items-center gap-2 text-xs">
+        <button onclick="toggleCustomInputDrawer()" class="text-slate-400 hover:text-sky-400 flex items-center gap-1 font-medium transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+          Provide Custom Array Values
+        </button>
+        <span class="text-slate-600">•</span>
+        <span id="current-array-preview" class="text-slate-500 font-mono truncate max-w-md"></span>
+      </div>
+      <div id="custom-input-box" class="hidden mt-3 p-3 bg-slate-950 rounded-xl border border-slate-800 flex flex-wrap items-center gap-2">
+        <input type="text" id="custom-array-input" placeholder="e.g. 45, 12, 89, 34, 7, 23, 60" class="flex-1 min-w-[240px] bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-sky-500" />
+        <button onclick="applyCustomArray()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold">Apply Array</button>
+      </div>
+    </section>
+
+    <div id="visualizer-wrapper" class="flex-1 flex flex-col gap-4">
+      
+      <!-- Primary / Left Viewport Panel -->
+      <div id="panel-primary" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col shadow-xl">
+        <div class="flex flex-wrap items-center justify-between border-b border-slate-800/80 pb-3 gap-2">
+          <div class="flex items-center gap-3">
+            <span id="title-algo-1" class="text-sm font-bold tracking-wide uppercase text-sky-400">Merge Sort Visualizer</span>
+            <span id="badge-complexity-1" class="text-xs px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono border border-slate-700">Time: O(N log N) | Space: O(N)</span>
+          </div>
+
+          <!-- Real-time metrics counters -->
+          <div class="flex items-center gap-4 text-xs font-mono">
+            <div class="bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60">
+              <span class="text-slate-400 font-sans">Comparisons: </span>
+              <span id="metric-comps-1" class="font-bold text-amber-400">0</span>
+            </div>
+            <div class="bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60">
+              <span class="text-slate-400 font-sans">Swaps/Writes: </span>
+              <span id="metric-writes-1" class="font-bold text-rose-400">0</span>
+            </div>
+            <div class="bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60">
+              <span class="text-slate-400 font-sans">Step: </span>
+              <span id="metric-steps-1" class="font-bold text-sky-400">0 / 0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Canvas / Bar Display Stage -->
+        <div id="canvas-container-1" class="w-full h-64 sm:h-72 mt-4 flex items-end justify-center gap-1 sm:gap-1.5 px-2 relative select-none">
+          <!-- Dynamic bars rendered here -->
+        </div>
+
+        <!-- Active Subarray / Range Indicator Bar -->
+        <div id="range-indicator-1" class="h-6 mt-1 flex items-center justify-center font-mono text-[11px] text-slate-400 border-t border-slate-800/60">
+          Subarray range: [0 ... N-1]
+        </div>
+      </div>
+
+      <!-- Secondary Panel (Dual Comparison Mode for Merge Sort vs Quick Sort) -->
+      <div id="panel-secondary" class="hidden bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col shadow-xl">
+        <div class="flex flex-wrap items-center justify-between border-b border-slate-800/80 pb-3 gap-2">
+          <div class="flex items-center gap-3">
+            <span id="title-algo-2" class="text-sm font-bold tracking-wide uppercase text-indigo-400">Quick Sort Visualizer</span>
+            <span id="badge-complexity-2" class="text-xs px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono border border-slate-700">Time: O(N log N) | Space: O(log N)</span>
+          </div>
+
+          <div class="flex items-center gap-4 text-xs font-mono">
+            <div class="bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60">
+              <span class="text-slate-400 font-sans">Comparisons: </span>
+              <span id="metric-comps-2" class="font-bold text-amber-400">0</span>
+            </div>
+            <div class="bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60">
+              <span class="text-slate-400 font-sans">Swaps/Writes: </span>
+              <span id="metric-writes-2" class="font-bold text-rose-400">0</span>
+            </div>
+            <div class="bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60">
+              <span class="text-slate-400 font-sans">Step: </span>
+              <span id="metric-steps-2" class="font-bold text-indigo-400">0 / 0</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="canvas-container-2" class="w-full h-64 sm:h-72 mt-4 flex items-end justify-center gap-1 sm:gap-1.5 px-2 relative select-none">
+          <!-- Bars rendered here for Dual Comparison -->
+        </div>
+
+        <div id="range-indicator-2" class="h-6 mt-1 flex items-center justify-center font-mono text-[11px] text-slate-400 border-t border-slate-800/60">
+          Subarray range: [0 ... N-1]
+        </div>
+      </div>
+
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Live Step Explainer / Narrative Log -->
+      <div class="lg:col-span-2 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Live Decision & Step Explanation</h3>
+            </div>
+            <span id="current-phase-badge" class="text-xs px-2 py-0.5 rounded bg-slate-800 text-sky-400 border border-sky-500/20 font-mono">Phase: Ready</span>
+          </div>
+
+          <div id="step-narrative" class="font-mono text-sm leading-relaxed text-slate-200 min-h-[64px] bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
+            Press "Start" or use "Step Forward" to watch the algorithm execute step by step.
+          </div>
+        </div>
+
+        <!-- Legend / Color Scheme Key -->
+        <div class="mt-4 pt-3 border-t border-slate-800/60 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+          <span class="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Legend:</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-sky-500 inline-block"></span> Unsorted</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-400 inline-block"></span> Comparing</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-rose-500 inline-block"></span> Swapping / Writing</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-purple-500 inline-block"></span> Pivot</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span> Sorted / Found</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-600 inline-block"></span> Discarded Range</span>
+        </div>
+      </div>
+
+      <!-- Pseudocode & Recurrence Tracker -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Pseudocode Tracking</h3>
+          <span id="recurrence-label" class="text-[11px] font-mono text-indigo-400">T(n) = 2T(n/2) + O(n)</span>
+        </div>
+
+        <div id="pseudocode-display" class="font-mono text-xs overflow-y-auto max-h-[140px] bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-0.5 leading-relaxed text-slate-400">
+          <!-- Populated dynamically based on selected algorithm -->
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <div id="info-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 max-w-2xl w-full rounded-2xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <span>DAA Core Analysis: Sorting & Searching</span>
+        </h2>
+        <button onclick="toggleModal('info-modal')" class="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs text-slate-300 leading-relaxed font-sans">
+        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-sky-400 text-sm mb-1">Merge Sort (Divide-and-Conquer)</h4>
+          <p class="mb-2">Divides the array into two halves recursively until singleton subarrays are reached, then merges the sorted halves into an auxiliary buffer. Guaranteed $O(N \log N)$ worst-case time complexity and stable sorting, requiring $O(N)$ extra space.</p>
+          <p class="font-mono text-slate-400">Recurrence: T(n) = 2T(n/2) + \Theta(n) \implies O(n \log n)</p>
+        </div>
+
+        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-purple-400 text-sm mb-1">Quick Sort (Partition-Exchange)</h4>
+          <p class="mb-2">Selects a pivot element and rearranges elements such that elements smaller than the pivot precede it, and larger elements follow it (Lomuto partitioning). In-place with $O(\log N)$ call-stack space. Average $O(N \log N)$, worst-case $O(N^2)$ when pivot selection is degenerate.</p>
+          <p class="font-mono text-slate-400">Recurrence (Balanced): T(n) = 2T(n/2) + \Theta(n) \implies O(n \log n)</p>
+        </div>
+
+        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-emerald-400 text-sm mb-1">Binary Search (Decrease-and-Conquer)</h4>
+          <p class="mb-2">Operates strictly on pre-sorted arrays. Repeatedly evaluates the middle element (`mid = \lfloor(low + high)/2\rfloor`). If target matches, search terminates. Otherwise, half of the search interval is discarded immediately, delivering an optimal $O(\log N)$ search complexity.</p>
+          <p class="font-mono text-slate-400">Recurrence: T(n) = T(n/2) + O(1) \implies O(\log n)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* State Definitions */
+    const State = {
+      mode: 'single-sort', // 'single-sort' | 'dual-sort' | 'search'
+      selectedAlgo: 'merge', // 'merge' | 'quick' | 'binary' | 'linear'
+      arraySize: 25,
+      speedMs: 120,
+      soundEnabled: true,
+      isPlaying: false,
+      timerId: null,
+
+      // Single sort / primary steps
+      primaryArray: [],
+      initialArray: [],
+      primarySteps: [],
+      primaryStepIndex: 0,
+      primaryStats: { comps: 0, writes: 0 },
+
+      // Dual comparison mode steps
+      secondaryArray: [],
+      secondarySteps: [],
+      secondaryStepIndex: 0,
+      secondaryStats: { comps: 0, writes: 0 },
+
+      // Search target
+      searchTarget: 42
+    };
+
+    /* Audio Context for Pitch Sonification */
+    let audioCtx = null;
+    function playBeep(val, min = 5, max = 100) {
+      if (!State.soundEnabled) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const freq = 160 + ((val - min) / (max - min || 1)) * 680;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.type = 'triangle';
+        gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.08);
+      } catch (e) {
+        // Audio policy or unsupported
+      }
+    }
+
+    /* Algorithm Pseudocode Definitions */
+    const PSEUDOCODES = {
+      merge: [
+        "function mergeSort(arr, l, r):",
+        "  if l < r:",
+        "    mid = floor((l + r) / 2)",
+        "    mergeSort(arr, l, mid)",
+        "    mergeSort(arr, mid + 1, r)",
+        "    merge(arr, l, mid, r)",
+        "function merge(arr, l, m, r):",
+        "  copy to aux[]; compare L & R elements",
+        "  write smallest back into arr[k++]"
+      ],
+      quick: [
+        "function quickSort(arr, low, high):",
+        "  if low < high:",
+        "    pivotIdx = partition(arr, low, high)",
+        "    quickSort(arr, low, pivotIdx - 1)",
+        "    quickSort(arr, pivotIdx + 1, high)",
+        "function partition(arr, low, high):",
+        "  pivot = arr[high]; i = low - 1",
+        "  for j = low to high - 1:",
+        "    if arr[j] <= pivot: swap(arr[++i], arr[j])",
+        "  swap(arr[i + 1], arr[high]); return i + 1"
+      ],
+      binary: [
+        "function binarySearch(arr, target):",
+        "  low = 0; high = length - 1",
+        "  while low <= high:",
+        "    mid = floor((low + high) / 2)",
+        "    if arr[mid] == target: return mid",
+        "    else if arr[mid] < target: low = mid + 1",
+        "    else: high = mid - 1",
+        "  return -1 // not found"
+      ],
+      linear: [
+        "function linearSearch(arr, target):",
+        "  for i = 0 to length - 1:",
+        "    compare arr[i] with target",
+        "    if arr[i] == target: return i",
+        "  return -1 // not found"
+      ]
+    };
+
+    /**
+     * Merge Sort Step Generator
+     * Emits states capturing subarray bounds, comparisons, and auxiliary writes back into the array.
+     */
+    function generateMergeSortSteps(sourceArr) {
+      const arr = [...sourceArr];
+      const steps = [];
+      let comps = 0;
+      let writes = 0;
+
+      function record(type, details) {
+        steps.push({
+          arr: [...arr],
+          type,
+          comps,
+          writes,
+          line: details.line || 1,
+          left: details.left,
+          right: details.right,
+          mid: details.mid,
+          comparing: details.comparing || [],
+          swapping: details.swapping || [],
+          sorted: details.sorted || [],
+          narrative: details.narrative || ""
+        });
+      }
+
+      record('init', { narrative: "Initialized array for Merge Sort. Preparing divide phase.", line: 1 });
+
+      function mergeSortHelper(l, r) {
+        if (l >= r) return;
+        const mid = Math.floor((l + r) / 2);
+        record('split', {
+          left: l, right: r, mid,
+          narrative: `Splitting subarray [${l}..${r}] at midpoint ${mid}. Left: [${l}..${mid}], Right: [${mid + 1}..${r}].`,
+          line: 3
+        });
+
+        mergeSortHelper(l, mid);
+        mergeSortHelper(mid + 1, r);
+        merge(l, mid, r);
+      }
+
+      function merge(l, m, r) {
+        record('merge-start', {
+          left: l, right: r, mid: m,
+          narrative: `Merging sorted segments [${l}..${m}] and [${m + 1}..${r}].`,
+          line: 6
+        });
+
+        const leftHalf = arr.slice(l, m + 1);
+        const rightHalf = arr.slice(m + 1, r + 1);
+        let i = 0, j = 0, k = l;
+
+        while (i < leftHalf.length && j < rightHalf.length) {
+          comps++;
+          const idxA = l + i;
+          const idxB = m + 1 + j;
+          record('compare', {
+            left: l, right: r, mid: m,
+            comparing: [idxA, idxB],
+            narrative: `Comparing left element ${leftHalf[i]} with right element ${rightHalf[j]}.`,
+            line: 8
+          });
+
+          if (leftHalf[i] <= rightHalf[j]) {
+            arr[k] = leftHalf[i];
+            writes++;
+            record('write', {
+              left: l, right: r,
+              swapping: [k],
+              narrative: `Placing ${leftHalf[i]} into position ${k}.`,
+              line: 9
+            });
+            i++;
+          } else {
+            arr[k] = rightHalf[j];
+            writes++;
+            record('write', {
+              left: l, right: r,
+              swapping: [k],
+              narrative: `Placing ${rightHalf[j]} into position ${k}.`,
+              line: 9
+            });
+            j++;
+          }
+          k++;
+        }
+
+        while (i < leftHalf.length) {
+          arr[k] = leftHalf[i];
+          writes++;
+          record('write-residual', {
+            left: l, right: r,
+            swapping: [k],
+            narrative: `Copying remaining left element ${leftHalf[i]} to index ${k}.`,
+            line: 9
+          });
+          i++;
+          k++;
+        }
+
+        while (j < rightHalf.length) {
+          arr[k] = rightHalf[j];
+          writes++;
+          record('write-residual', {
+            left: l, right: r,
+            swapping: [k],
+            narrative: `Copying remaining right element ${rightHalf[j]} to index ${k}.`,
+            line: 9
+          });
+          j++;
+          k++;
+        }
+      }
+
+      mergeSortHelper(0, arr.length - 1);
+      // Mark entire array as sorted
+      const allIndices = arr.map((_, i) => i);
+      record('completed', {
+        sorted: allIndices,
+        narrative: `Merge Sort complete! Array fully sorted with ${comps} comparisons and ${writes} writes.`,
+        line: 1
+      });
+
+      return steps;
+    }
+
+    /**
+     * Quick Sort Step Generator (Lomuto Partition)
+     */
+    function generateQuickSortSteps(sourceArr) {
+      const arr = [...sourceArr];
+      const steps = [];
+      let comps = 0;
+      let writes = 0;
+      const finalizedPivots = new Set();
+
+      function record(type, details) {
+        steps.push({
+          arr: [...arr],
+          type,
+          comps,
+          writes,
+          line: details.line || 1,
+          left: details.left,
+          right: details.right,
+          pivot: details.pivot,
+          comparing: details.comparing || [],
+          swapping: details.swapping || [],
+          sorted: [...finalizedPivots, ...(details.sorted || [])],
+          narrative: details.narrative || ""
+        });
+      }
+
+      record('init', { narrative: "Initialized array for Quick Sort (Lomuto Partition).", line: 1 });
+
+      function quickSortHelper(low, high) {
+        if (low > high) return;
+        if (low === high) {
+          finalizedPivots.add(low);
+          record('single-element', {
+            left: low, right: high, sorted: [low],
+            narrative: `Single element at index ${low} is trivially sorted.`,
+            line: 2
+          });
+          return;
+        }
+
+        const pIndex = partition(low, high);
+        finalizedPivots.add(pIndex);
+        record('pivot-placed', {
+          left: low, right: high, pivot: pIndex,
+          narrative: `Pivot ${arr[pIndex]} locked at permanent sorted position ${pIndex}.`,
+          line: 5
+        });
+
+        quickSortHelper(low, pIndex - 1);
+        quickSortHelper(pIndex + 1, high);
+      }
+
+      function partition(low, high) {
+        const pivotVal = arr[high];
+        let i = low - 1;
+
+        record('partition-start', {
+          left: low, right: high, pivot: high,
+          narrative: `Partitioning range [${low}..${high}] with pivot = ${pivotVal} at index ${high}.`,
+          line: 7
+        });
+
+        for (let j = low; j < high; j++) {
+          comps++;
+          record('compare', {
+            left: low, right: high, pivot: high,
+            comparing: [j, high],
+            narrative: `Comparing arr[${j}] = ${arr[j]} with pivot ${pivotVal}.`,
+            line: 9
+          });
+
+          if (arr[j] <= pivotVal) {
+            i++;
+            if (i !== j) {
+              const temp = arr[i];
+              arr[i] = arr[j];
+              arr[j] = temp;
+              writes += 2;
+              record('swap', {
+                left: low, right: high, pivot: high,
+                swapping: [i, j],
+                narrative: `arr[${j}] <= pivot. Swapped arr[${i}] (${arr[i]}) with arr[${j}] (${arr[j]}).`,
+                line: 9
+              });
+            }
+          }
+        }
+
+        // Swap pivot into its rightful place
+        i++;
+        if (i !== high) {
+          const temp = arr[i];
+          arr[i] = arr[high];
+          arr[high] = temp;
+          writes += 2;
+          record('swap-pivot', {
+            left: low, right: high, pivot: i,
+            swapping: [i, high],
+            narrative: `Swapped pivot ${pivotVal} into partition index ${i}.`,
+            line: 10
+          });
+        }
+
+        return i;
+      }
+
+      quickSortHelper(0, arr.length - 1);
+      const allIndices = arr.map((_, i) => i);
+      record('completed', {
+        sorted: allIndices,
+        narrative: `Quick Sort complete! Total comparisons: ${comps}, Swaps: ${Math.floor(writes / 2)}.`,
+        line: 1
+      });
+
+      return steps;
+    }
+
+    /**
+     * Binary Search Step Generator
+     */
+    function generateBinarySearchSteps(sortedArr, target) {
+      const arr = [...sortedArr];
+      const steps = [];
+      let comps = 0;
+      let low = 0;
+      let high = arr.length - 1;
+      let foundIndex = -1;
+
+      function record(type, details) {
+        // Discarded elements are outside [low..high]
+        const discarded = [];
+        for (let idx = 0; idx < arr.length; idx++) {
+          if (idx < details.low || idx > details.high) {
+            discarded.push(idx);
+          }
+        }
+
+        steps.push({
+          arr: [...arr],
+          type,
+          comps,
+          writes: 0,
+          line: details.line || 1,
+          low: details.low,
+          mid: details.mid,
+          high: details.high,
+          comparing: details.comparing || [],
+          found: details.found !== undefined ? details.found : -1,
+          discarded,
+          narrative: details.narrative || ""
+        });
+      }
+
+      record('init', {
+        low, high, mid: Math.floor((low + high) / 2),
+        narrative: `Binary Search started for Target = ${target}. Array range [${low}..${high}].`,
+        line: 2
+      });
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        comps++;
+        const midVal = arr[mid];
+
+        record('mid-calc', {
+          low, high, mid,
+          comparing: [mid],
+          narrative: `Evaluating mid = floor((${low} + ${high}) / 2) = ${mid}. arr[${mid}] is ${midVal}.`,
+          line: 4
+        });
+
+        if (midVal === target) {
+          foundIndex = mid;
+          record('found', {
+            low, high, mid,
+            found: mid,
+            narrative: `SUCCESS! Found target value ${target} at index ${mid} in ${comps} comparisons!`,
+            line: 5
+          });
+          break;
+        } else if (midVal < target) {
+          record('discard-left', {
+            low, high, mid,
+            narrative: `arr[${mid}] = ${midVal} < ${target}. Target must be in right half. Eliminating [${low}..${mid}].`,
+            line: 6
+          });
+          low = mid + 1;
+        } else {
+          record('discard-right', {
+            low, high, mid,
+            narrative: `arr[${mid}] = ${midVal} > ${target}. Target must be in left half. Eliminating [${mid}..${high}].`,
+            line: 7
+          });
+          high = mid - 1;
+        }
+      }
+
+      if (foundIndex === -1) {
+        record('not-found', {
+          low, high, mid: -1,
+          narrative: `Search space exhausted (low > high). Target ${target} DOES NOT exist in array. Total comparisons: ${comps}.`,
+          line: 8
+        });
+      }
+
+      return steps;
+    }
+
+    /**
+     * Linear Search Step Generator
+     */
+    function generateLinearSearchSteps(arr, target) {
+      const steps = [];
+      let comps = 0;
+      let found = -1;
+
+      function record(type, details) {
+        steps.push({
+          arr: [...arr],
+          type,
+          comps,
+          writes: 0,
+          line: details.line || 1,
+          comparing: details.comparing || [],
+          found: details.found !== undefined ? details.found : -1,
+          discarded: details.discarded || [],
+          narrative: details.narrative || ""
+        });
+      }
+
+      record('init', { narrative: `Linear search started for Target = ${target}.`, line: 1 });
+
+      const discarded = [];
+      for (let i = 0; i < arr.length; i++) {
+        comps++;
+        record('compare', {
+          comparing: [i],
+          discarded: [...discarded],
+          narrative: `Comparing arr[${i}] = ${arr[i]} with target ${target}.`,
+          line: 3
+        });
+
+        if (arr[i] === target) {
+          found = i;
+          record('found', {
+            comparing: [i],
+            found: i,
+            discarded: [...discarded],
+            narrative: `MATCH FOUND! Target ${target} located at index ${i} after ${comps} step(s).`,
+            line: 4
+          });
+          break;
+        } else {
+          discarded.push(i);
+        }
+      }
+
+      if (found === -1) {
+        record('not-found', {
+          discarded: [...discarded],
+          narrative: `Reached end of array. Target ${target} not found after ${comps} comparisons.`,
+          line: 5
+        });
+      }
+
+      return steps;
+    }
+
+    function renderStep(containerId, stepObj, rangeIndicatorId) {
+      const container = document.getElementById(containerId);
+      if (!container || !stepObj) return;
+
+      const arr = stepObj.arr;
+      const maxVal = Math.max(...arr, 1);
+      const isSearchMode = State.mode === 'search';
+
+      // Clear container
+      container.innerHTML = '';
+
+      arr.forEach((val, idx) => {
+        const barWrapper = document.createElement('div');
+        barWrapper.className = 'flex-1 h-full flex flex-col items-center justify-end relative group';
+
+        const heightPercent = Math.max(8, (val / maxVal) * 92);
+
+        // Bar column element
+        const bar = document.createElement('div');
+        bar.className = 'w-full rounded-t-md transition-all duration-150 bar-default relative flex items-center justify-center';
+        bar.style.height = `${heightPercent}%`;
+
+        // Styling classes based on step state
+        if (stepObj.found === idx) {
+          bar.className = bar.className.replace('bar-default', 'bar-found');
+        } else if (stepObj.swapping && stepObj.swapping.includes(idx)) {
+          bar.className = bar.className.replace('bar-default', 'bar-swapping');
+        } else if (stepObj.comparing && stepObj.comparing.includes(idx)) {
+          bar.className = bar.className.replace('bar-default', 'bar-comparing');
+        } else if (stepObj.pivot === idx) {
+          bar.className = bar.className.replace('bar-default', 'bar-pivot');
+        } else if (stepObj.sorted && stepObj.sorted.includes(idx)) {
+          bar.className = bar.className.replace('bar-default', 'bar-sorted');
+        } else if (stepObj.discarded && stepObj.discarded.includes(idx)) {
+          bar.className = bar.className.replace('bar-default', 'bar-discarded');
+        }
+
+        // Active Range Border
+        if (stepObj.left !== undefined && stepObj.right !== undefined) {
+          if (idx >= stepObj.left && idx <= stepObj.right) {
+            bar.classList.add('bar-active-range');
+          }
+        }
+
+        // Value text inside bar (if width permits)
+        if (arr.length <= 32) {
+          const valLabel = document.createElement('span');
+          valLabel.className = 'text-[10px] font-mono font-bold text-white/90 select-none pb-1';
+          valLabel.textContent = val;
+          bar.appendChild(valLabel);
+        }
+
+        // Pointer label indicators for Binary Search (low, mid, high)
+        if (isSearchMode && State.selectedAlgo === 'binary') {
+          let badge = '';
+          if (stepObj.mid === idx) badge = 'M';
+          else if (stepObj.low === idx) badge = 'L';
+          else if (stepObj.high === idx) badge = 'H';
+
+          if (badge) {
+            const badgeEl = document.createElement('div');
+            badgeEl.className = 'absolute -top-6 text-[10px] font-bold font-mono px-1.5 py-0.5 rounded shadow text-white ' +
+              (badge === 'M' ? 'bg-amber-500 ring-2 ring-amber-300' : 'bg-sky-500');
+            badgeEl.textContent = badge;
+            barWrapper.appendChild(badgeEl);
+          }
+        }
+
+        // Quick Sort pointer badges
+        if (!isSearchMode && stepObj.pivot === idx) {
+          const pivotBadge = document.createElement('div');
+          pivotBadge.className = 'absolute -top-6 text-[9px] font-bold font-mono px-1 py-0.2 rounded bg-purple-600 text-white';
+          pivotBadge.textContent = 'P';
+          barWrapper.appendChild(pivotBadge);
+        }
+
+        // Index subscript below bar
+        const indexLabel = document.createElement('span');
+        indexLabel.className = 'text-[9px] font-mono text-slate-500 mt-1 select-none';
+        indexLabel.textContent = idx;
+
+        barWrapper.appendChild(bar);
+        barWrapper.appendChild(indexLabel);
+        container.appendChild(barWrapper);
+      });
+
+      // Update range indicator footer
+      const rangeEl = document.getElementById(rangeIndicatorId);
+      if (rangeEl) {
+        if (stepObj.left !== undefined && stepObj.right !== undefined) {
+          rangeEl.textContent = `Active Subarray Window: [${stepObj.left} ... ${stepObj.right}]`;
+        } else if (stepObj.low !== undefined && stepObj.high !== undefined) {
+          rangeEl.textContent = `Search Range: low = ${stepObj.low}, high = ${stepObj.high}, mid = ${stepObj.mid >= 0 ? stepObj.mid : 'None'}`;
+        } else {
+          rangeEl.textContent = `Array bounds: [0 ... ${arr.length - 1}]`;
+        }
+      }
+
+      // Audio frequency beep on comparisons/writes
+      if (stepObj.comparing && stepObj.comparing.length > 0) {
+        playBeep(arr[stepObj.comparing[0]]);
+      } else if (stepObj.swapping && stepObj.swapping.length > 0) {
+        playBeep(arr[stepObj.swapping[0]]);
+      }
+    }
+
+    function updateDisplay() {
+      // Step 1: Render Primary Canvas
+      const pStep = State.primarySteps[State.primaryStepIndex] || State.primarySteps[0];
+      if (pStep) {
+        renderStep('canvas-container-1', pStep, 'range-indicator-1');
+        document.getElementById('metric-comps-1').textContent = pStep.comps;
+        document.getElementById('metric-writes-1').textContent = pStep.writes;
+        document.getElementById('metric-steps-1').textContent = `${State.primaryStepIndex + 1} / ${State.primarySteps.length}`;
+        
+        // Narrative ticker
+        document.getElementById('step-narrative').textContent = pStep.narrative;
+        highlightPseudocodeLine(pStep.line);
+
+        // Phase badge
+        const phaseBadge = document.getElementById('current-phase-badge');
+        phaseBadge.textContent = `Phase: ${pStep.type.toUpperCase()}`;
+      }
+
+      // Step 2: Render Secondary Canvas (if in Dual Mode)
+      if (State.mode === 'dual-sort') {
+        const sStep = State.secondarySteps[State.secondaryStepIndex] || State.secondarySteps[0];
+        if (sStep) {
+          renderStep('canvas-container-2', sStep, 'range-indicator-2');
+          document.getElementById('metric-comps-2').textContent = sStep.comps;
+          document.getElementById('metric-writes-2').textContent = sStep.writes;
+          document.getElementById('metric-steps-2').textContent = `${State.secondaryStepIndex + 1} / ${State.secondarySteps.length}`;
+        }
+      }
+
+      // Button states
+      const maxP = State.primarySteps.length - 1;
+      const maxS = State.mode === 'dual-sort' ? State.secondarySteps.length - 1 : 0;
+      const isAtEnd = State.primaryStepIndex >= maxP && (State.mode !== 'dual-sort' || State.secondaryStepIndex >= maxS);
+
+      document.getElementById('step-back-btn').disabled = (State.primaryStepIndex === 0 && State.secondaryStepIndex === 0);
+      document.getElementById('step-fwd-btn').disabled = isAtEnd;
+
+      if (isAtEnd && State.isPlaying) {
+        pause();
+      }
+    }
+
+    function highlightPseudocodeLine(lineNum) {
+      const codeContainer = document.getElementById('pseudocode-display');
+      const lines = codeContainer.querySelectorAll('.code-line');
+      lines.forEach((el, index) => {
+        if (index + 1 === lineNum) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      });
+    }
+
+    function renderPseudocode(algoKey) {
+      const lines = PSEUDOCODES[algoKey] || [];
+      const container = document.getElementById('pseudocode-display');
+      container.innerHTML = '';
+      lines.forEach((txt, idx) => {
+        const lineEl = document.createElement('div');
+        lineEl.className = 'code-line px-2 py-0.5 rounded transition-colors';
+        lineEl.textContent = `${idx + 1}. ${txt}`;
+        container.appendChild(lineEl);
+      });
+
+      // Update Recurrence Label
+      const recMap = {
+        merge: "T(n) = 2T(n/2) + O(n)",
+        quick: "T(n) = 2T(n/2) + O(n) avg",
+        binary: "T(n) = T(n/2) + O(1)",
+        linear: "T(n) = T(n-1) + O(1)"
+      };
+      document.getElementById('recurrence-label').textContent = recMap[algoKey] || "";
+    }
+
+    function togglePlay() {
+      if (State.isPlaying) {
+        pause();
+      } else {
+        play();
+      }
+    }
+
+    function play() {
+      const maxP = State.primarySteps.length - 1;
+      const maxS = State.mode === 'dual-sort' ? State.secondarySteps.length - 1 : 0;
+
+      // If at end, loop back to start
+      if (State.primaryStepIndex >= maxP && (State.mode !== 'dual-sort' || State.secondaryStepIndex >= maxS)) {
+        State.primaryStepIndex = 0;
+        State.secondaryStepIndex = 0;
+      }
+
+      State.isPlaying = true;
+      document.getElementById('play-text').textContent = 'Pause';
+      document.getElementById('play-icon').innerHTML = '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />';
+      
+      runTicker();
+    }
+
+    function pause() {
+      State.isPlaying = false;
+      clearTimeout(State.timerId);
+      document.getElementById('play-text').textContent = 'Resume';
+      document.getElementById('play-icon').innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />';
+    }
+
+    function runTicker() {
+      if (!State.isPlaying) return;
+
+      let advanced = false;
+      if (State.primaryStepIndex < State.primarySteps.length - 1) {
+        State.primaryStepIndex++;
+        advanced = true;
+      }
+
+      if (State.mode === 'dual-sort' && State.secondaryStepIndex < State.secondarySteps.length - 1) {
+        State.secondaryStepIndex++;
+        advanced = true;
+      }
+
+      updateDisplay();
+
+      if (advanced) {
+        State.timerId = setTimeout(runTicker, State.speedMs);
+      } else {
+        pause();
+      }
+    }
+
+    function stepForward() {
+      pause();
+      if (State.primaryStepIndex < State.primarySteps.length - 1) {
+        State.primaryStepIndex++;
+      }
+      if (State.mode === 'dual-sort' && State.secondaryStepIndex < State.secondarySteps.length - 1) {
+        State.secondaryStepIndex++;
+      }
+      updateDisplay();
+    }
+
+    function stepBackward() {
+      pause();
+      if (State.primaryStepIndex > 0) {
+        State.primaryStepIndex--;
+      }
+      if (State.mode === 'dual-sort' && State.secondaryStepIndex > 0) {
+        State.secondaryStepIndex--;
+      }
+      updateDisplay();
+    }
+
+    function resetCurrentRun() {
+      pause();
+      State.primaryStepIndex = 0;
+      State.secondaryStepIndex = 0;
+      updateDisplay();
+    }
+
+    function setMode(newMode) {
+      pause();
+      State.mode = newMode;
+
+      // Update Tab Styles
+      document.querySelectorAll('.mode-tab').forEach(tab => {
+        tab.className = 'mode-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 text-slate-300 hover:text-white';
+      });
+
+      const select = document.getElementById('algo-select');
+      select.innerHTML = '';
+
+      const panelSec = document.getElementById('panel-secondary');
+      const searchControls = document.getElementById('search-controls-bar');
+      const algoBox = document.getElementById('algo-selection-box');
+
+      if (newMode === 'single-sort') {
+        document.getElementById('mode-single-sort').className = 'mode-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 text-white shadow';
+        panelSec.classList.add('hidden');
+        searchControls.classList.add('hidden');
+        algoBox.classList.remove('hidden');
+
+        select.innerHTML = `
+          <option value="merge">Merge Sort (Divide & Conquer)</option>
+          <option value="quick">Quick Sort (Partition-Exchange)</option>
+        `;
+        State.selectedAlgo = 'merge';
+        document.getElementById('title-algo-1').textContent = 'Merge Sort Visualizer';
+        document.getElementById('badge-complexity-1').textContent = 'Time: O(N log N) | Space: O(N)';
+      } 
+      else if (newMode === 'dual-sort') {
+        document.getElementById('mode-dual-sort').className = 'mode-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 text-white shadow';
+        panelSec.classList.remove('hidden');
+        searchControls.classList.add('hidden');
+        algoBox.classList.add('hidden');
+
+        document.getElementById('title-algo-1').textContent = 'Merge Sort Visualizer';
+        document.getElementById('badge-complexity-1').textContent = 'Time: O(N log N) | Space: O(N)';
+        document.getElementById('title-algo-2').textContent = 'Quick Sort Visualizer';
+        document.getElementById('badge-complexity-2').textContent = 'Time: O(N log N) | Space: O(log N)';
+        State.selectedAlgo = 'dual';
+      } 
+      else if (newMode === 'search') {
+        document.getElementById('mode-search').className = 'mode-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 text-white shadow';
+        panelSec.classList.add('hidden');
+        searchControls.classList.remove('hidden');
+        algoBox.classList.remove('hidden');
+
+        select.innerHTML = `
+          <option value="binary">Binary Search (O(log N))</option>
+          <option value="linear">Linear Search (O(N))</option>
+        `;
+        State.selectedAlgo = 'binary';
+        document.getElementById('title-algo-1').textContent = 'Binary Search Visualizer';
+        document.getElementById('badge-complexity-1').textContent = 'Time: O(log N) | Space: O(1)';
+      }
+
+      generateData('random');
+    }
+
+    function onAlgoChange() {
+      pause();
+      State.selectedAlgo = document.getElementById('algo-select').value;
+      if (State.selectedAlgo === 'merge') {
+        document.getElementById('title-algo-1').textContent = 'Merge Sort Visualizer';
+        document.getElementById('badge-complexity-1').textContent = 'Time: O(N log N) | Space: O(N)';
+      } else if (State.selectedAlgo === 'quick') {
+        document.getElementById('title-algo-1').textContent = 'Quick Sort Visualizer';
+        document.getElementById('badge-complexity-1').textContent = 'Time: O(N log N) | Space: O(log N)';
+      } else if (State.selectedAlgo === 'binary') {
+        document.getElementById('title-algo-1').textContent = 'Binary Search Visualizer';
+        document.getElementById('badge-complexity-1').textContent = 'Time: O(log N) | Space: O(1)';
+      } else if (State.selectedAlgo === 'linear') {
+        document.getElementById('title-algo-1').textContent = 'Linear Search Visualizer';
+        document.getElementById('badge-complexity-1').textContent = 'Time: O(N) | Space: O(1)';
+      }
+
+      recomputeSteps();
+    }
+
+    function generateData(type) {
+      pause();
+      let arr = [];
+      const n = State.arraySize;
+
+      if (type === 'random') {
+        for (let i = 0; i < n; i++) {
+          arr.push(Math.floor(Math.random() * 88) + 12);
+        }
+      } else if (type === 'nearly-sorted') {
+        for (let i = 0; i < n; i++) {
+          arr.push(10 + Math.floor((i / n) * 85));
+        }
+        // Add minor swaps
+        for (let i = 0; i < Math.floor(n / 6); i++) {
+          const a = Math.floor(Math.random() * n);
+          const b = Math.floor(Math.random() * n);
+          [arr[a], arr[b]] = [arr[b], arr[a]];
+        }
+      } else if (type === 'reversed') {
+        for (let i = 0; i < n; i++) {
+          arr.push(98 - Math.floor((i / n) * 85));
+        }
+      } else if (type === 'few-unique') {
+        const pool = [15, 38, 62, 85];
+        for (let i = 0; i < n; i++) {
+          arr.push(pool[Math.floor(Math.random() * pool.length)]);
+        }
+      }
+
+      // In searching mode, Binary Search mandates sorted array
+      if (State.mode === 'search') {
+        arr.sort((a, b) => a - b);
+        // Default target pick
+        State.searchTarget = arr[Math.floor(n / 2)];
+        document.getElementById('search-target-input').value = State.searchTarget;
+      }
+
+      State.initialArray = [...arr];
+      State.primaryArray = [...arr];
+      State.secondaryArray = [...arr];
+
+      document.getElementById('current-array-preview').textContent = `[${arr.slice(0, 10).join(', ')}${arr.length > 10 ? '...' : ''}]`;
+      recomputeSteps();
+    }
+
+    function recomputeSteps() {
+      State.primaryStepIndex = 0;
+      State.secondaryStepIndex = 0;
+
+      const codeKey = (State.mode === 'dual-sort') ? 'merge' : State.selectedAlgo;
+      renderPseudocode(codeKey);
+
+      if (State.mode === 'single-sort') {
+        if (State.selectedAlgo === 'merge') {
+          State.primarySteps = generateMergeSortSteps(State.initialArray);
+        } else {
+          State.primarySteps = generateQuickSortSteps(State.initialArray);
+        }
+      } else if (State.mode === 'dual-sort') {
+        State.primarySteps = generateMergeSortSteps(State.initialArray);
+        State.secondarySteps = generateQuickSortSteps(State.initialArray);
+      } else if (State.mode === 'search') {
+        const target = parseInt(document.getElementById('search-target-input').value, 10) || 42;
+        State.searchTarget = target;
+        if (State.selectedAlgo === 'binary') {
+          State.primarySteps = generateBinarySearchSteps(State.initialArray, target);
+        } else {
+          State.primarySteps = generateLinearSearchSteps(State.initialArray, target);
+        }
+      }
+
+      updateDisplay();
+    }
+
+    function onSizeSliderChange(val) {
+      State.arraySize = parseInt(val, 10);
+      document.getElementById('size-val').textContent = val;
+      generateData('random');
+    }
+
+    function onSpeedSliderChange(val) {
+      const numericVal = parseInt(val, 10);
+      // Map 1..100 slider to 400ms down to 15ms delay
+      State.speedMs = Math.round(420 - (numericVal / 100) * 400);
+      const speedMultiplier = (numericVal / 45).toFixed(1);
+      document.getElementById('speed-val').textContent = `${speedMultiplier}x`;
+    }
+
+    function toggleAudio() {
+      State.soundEnabled = !State.soundEnabled;
+      document.getElementById('sound-icon-on').classList.toggle('hidden', !State.soundEnabled);
+      document.getElementById('sound-icon-off').classList.toggle('hidden', State.soundEnabled);
+    }
+
+    function toggleModal(id) {
+      const el = document.getElementById(id);
+      el.classList.toggle('hidden');
+      el.classList.toggle('flex');
+    }
+
+    function toggleCustomInputDrawer() {
+      const box = document.getElementById('custom-input-box');
+      box.classList.toggle('hidden');
+    }
+
+    function applyCustomArray() {
+      const raw = document.getElementById('custom-array-input').value;
+      const parsed = raw.split(/[\s,]+/).map(v => parseInt(v.trim(), 10)).filter(v => !isNaN(v) && v > 0);
+
+      if (parsed.length < 4) {
+        alert("Please enter at least 4 valid numeric integers.");
+        return;
+      }
+
+      const clamped = parsed.slice(0, 50).map(v => Math.min(100, Math.max(5, v)));
+      State.arraySize = clamped.length;
+      document.getElementById('size-slider').value = State.arraySize;
+      document.getElementById('size-val').textContent = State.arraySize;
+
+      if (State.mode === 'search') {
+        clamped.sort((a, b) => a - b);
+      }
+
+      State.initialArray = [...clamped];
+      State.primaryArray = [...clamped];
+      State.secondaryArray = [...clamped];
+      document.getElementById('current-array-preview').textContent = `[${clamped.slice(0, 10).join(', ')}${clamped.length > 10 ? '...' : ''}]`;
+      recomputeSteps();
+      toggleCustomInputDrawer();
+    }
+
+    // Target Selection Shortcuts
+    function setRandomSearchTarget() {
+      if (!State.initialArray.length) return;
+      const idx = Math.floor(Math.random() * State.initialArray.length);
+      const targetVal = State.initialArray[idx];
+      document.getElementById('search-target-input').value = targetVal;
+      recomputeSteps();
+    }
+
+    function setNotFoundSearchTarget() {
+      const maxVal = Math.max(...State.initialArray, 0);
+      const targetVal = maxVal + 15;
+      document.getElementById('search-target-input').value = targetVal;
+      recomputeSteps();
+    }
+
+    // Search target input change listener
+    document.getElementById('search-target-input').addEventListener('change', () => {
+      recomputeSteps();
+    });
+
+    // Keyboard Shortcuts (Space for Play/Pause, Arrow Keys for Stepping)
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        stepForward();
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        stepBackward();
+      }
+    });
+
+    // Window load bootstrap
+    window.onload = function() {
+      setMode('single-sort');
+    };
+  </script>
+</body>
+</html>
